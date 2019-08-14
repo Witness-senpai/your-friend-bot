@@ -28,7 +28,7 @@ def new(settings):
     ages = []
     for age in range(min_age, min_age + age_diff):
         ages.append(str(age))
-    setts['ages'] = age
+    setts['ages'] = ages
 
 def do_parse():
     messages_toBot.clear()
