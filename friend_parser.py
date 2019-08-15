@@ -5,18 +5,19 @@ from selenium import webdriver
 
 age_diff = 5 #разница в большую сторону с минимальным возрастом
 old_ids = [] #список для временного хранение id постов
-store_limit = 16 #лимит хранения старых id
-messages_toBot = [] #cписок найденых сообщений, которые будут возвращены боту
+store_limit = 20 #лимит хранения старых id
 
+#cписок найденых сообщений и статистика, которые будут возвращены боту
+toBot = {
+    'messages': [],
+    'total_forms': 0,
+    'aim_forms': 0
+    }
 
 setts = {
-    'ages': ['18','19','20','21','22'],
+    'ages': [],
     'key_words': [],
-    'links': [
-        'https://vk.com/wall-78855837?own=1',
-        'https://vk.com/wall-108037201?own=1',
-        'https://vk.com/topic-12125584_27005921?offset=600'
-        ]
+    'links': []
     }
 
 def new(settings):
@@ -31,7 +32,10 @@ def new(settings):
     setts['ages'] = ages
 
 def do_parse():
-    messages_toBot.clear()
+    toBot['messages'] = []
+    toBot['total_forms'] = 0
+    toBot['aim_forms'] = 0
+
     for link in setts['links']:
         #Имитация браузера
         browser = webdriver.PhantomJS(executable_path="F:/phantomjs-2.1.1-windows/bin/phantomjs.exe")
@@ -67,22 +71,25 @@ def do_parse():
                     except:
                         continue
 
-                    post_id = link #id = уникальной ссылке
-                    
+                    post_id = link #id = уникальная ссылка
+                    if post_id not in old_ids:
+                        toBot['total_forms'] += 1
+             
                     if (
                     post_id not in old_ids and
                     any((age in post_text) for age in setts['ages']) and 
                     any((key in post_text) for key in setts['key_words'])
                     ):
-                        messages_toBot.append(
+                        toBot['messages'].append(
                             "Время публикации: " + date.text + "\n\n" + 
                             post_text + "\n\n" + "ссылка: " + full_link 
                         )
+                        toBot['aim_forms'] = toBot['aim_forms'] + 1
 
                         old_ids.append(post_id)
                         #при привышении лимита на хранение удаляем начиная со старых
-                        if (len(old_ids) > store_limit):
-                            old_ids.remove(0)
+                        while(len(old_ids) > store_limit):    
+                            old_ids.pop(0)
                         
                 else: 
                     continue
@@ -90,7 +97,7 @@ def do_parse():
         elif 'topic' in link: #если это записи в топике группы
             pass
 
-    return messages_toBot
+    return toBot
 
 def parse(settings):
     new(settings)

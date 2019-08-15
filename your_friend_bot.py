@@ -4,8 +4,10 @@ import time
 from secret_token import TOKEN
 
 settings = {
+    'total_forms': 0,
+    'aim_forms': 0,
     'currCommand': None,
-    'start_time': None,
+    'start_time': 0,
     'is_stop': True,
     'age': '18',
     'key_words': ['Москва'],
@@ -48,14 +50,19 @@ def com_go(message):
             "\nКлючевые слова: " + ('нет' if settings['key_words'] == None else str(settings['key_words'])) + 
             "\nСсылки для поиска: " + ('нет' if settings['links'] == None else str(settings['links'])) )
 
+            #фиксируем время начала поиска
+            settings['start_time'] = time.time()
+
             #бесконечный мониторинг, пока не остановят внешней командой stop
             settings['is_stop'] = False
             while settings['is_stop'] == False:
                 if (settings['is_stop'] == True):
-                    break
-                messages = friend_parser.parse(settings)
-                if (messages != None): 
-                    for messg in messages:
+                    break  
+                fromParser = friend_parser.parse(settings)
+                settings['total_forms'] += fromParser['total_forms']
+                settings['aim_forms'] += fromParser['aim_forms']
+                if (fromParser != None): 
+                    for messg in fromParser['messages']:
                         bot.send_message(message.from_user.id, messg)
                 time.sleep(5)
         else:
@@ -77,10 +84,26 @@ def com_stoping(message):
 def com_status(message):
     if settings['is_stop'] == True:
         bot.send_message(message.from_user.id, 
-        "Поиск не осуществляется. Текущие настройки:\n" +
-        "Минимальный возраст: " + ('любой' if settings['age'] == None else str(settings['age'])) + 
+        "Поиск не осуществляется.\nТекущие настройки:" +
+        "\nМинимальный возраст: " + ('любой' if settings['age'] == None else str(settings['age'])) + 
         "\nКлючевые слова: " + ('нет' if settings['key_words'] == None else str(settings['key_words'])) + 
         "\nСсылки для поиска: " + ('нет' if settings['links'] == None else str(settings['links'])) )
+    else:
+        tot_time = time.time() - settings['start_time']
+        seconds = tot_time % 60
+        minutes = (tot_time // 60) % 60
+        hours = (tot_time // 3600) % 24
+        days = (tot_time // (3600 * 24))
+        bot.send_message(message.from_user.id,
+        "Бот работает уже:" + str(tot_time) + " секунд, то есть уже: " +
+        "\nДней: " + str(int(days)) + 
+        "\nЧасов: " + str(int(hours)) +
+        "\nМинут: " + str(int(minutes)) + 
+        "\nСекунд: " + str(int(seconds)) +
+        "\n\nЗа это время было обработано:" + 
+        "\nНовых анкет: " + str(settings['total_forms']) +
+        "\nПодходящих анкет: " + str(settings['aim_forms']))
+
 
 @bot.message_handler(commands=['settings'])
 def com_settings(message):
@@ -121,7 +144,7 @@ def com_key_words(message):
 def com_links(message):
     settings['currCommand'] = 'links'
     bot.send_message(message.from_user.id, "Введите через ПРОБЕЛ ссылки, " +
-    "по которым будут подбираться анкеты")  
+    "по которым будут подбираться анкеты. \nВАЖНО: ссылка должна быть именно на стену сообщества, например 'vk.com/wall-ID_СООБЩЕСТВА'")  
 
 @bot.message_handler(content_types=['text'])
 def calcAnyText(message):
