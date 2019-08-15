@@ -1,6 +1,7 @@
 import friend_parser
 import telebot
 import time
+from secret_token import TOKEN
 
 settings = {
     'currCommand': None,
@@ -15,7 +16,6 @@ settings = {
         ]
     }
 
-TOKEN = '816487038:AAHvdUNJxvOlEKEaBthkDVMcHdGGsyrfVd0'
 bot = telebot.TeleBot(TOKEN)
 
 @bot.message_handler(commands=['start'])
@@ -65,8 +65,11 @@ def com_new(message):
 
 @bot.message_handler(commands=['stop'])
 def com_stoping(message):
-    settings['is_stop'] = True
-    bot.send_message(message.from_user.id, "Поиск прекращён. Бот остановлен.")   
+    if settings['is_stop'] == True:
+        bot.send_message(message.from_user.id, "Бот уже остановлен и ждёт новых указаний.")   
+    else:
+        settings['is_stop'] = True
+        bot.send_message(message.from_user.id, "Поиск прекращён. Бот остановлен.")   
 
 @bot.message_handler(commands=['status'])
 def com_status(message):
@@ -93,13 +96,13 @@ def com_age(message):
 @bot.message_handler(commands=['key_words'])
 def com_key_words(message):
     settings['currCommand'] = 'key_words'
-    bot.send_message(message.from_user.id, "Введите через запятую ключевые слова, " +
-    "по которым будут подбираться анкеты. Например: Москва, тян")
+    bot.send_message(message.from_user.id, "Введите через ПРОБЕЛ ключевые слова, " +
+    "по которым будут подбираться анкеты. Например: Москва тян")
 
 @bot.message_handler(commands=['links'])
 def com_links(message):
     settings['currCommand'] = 'links'
-    bot.send_message(message.from_user.id, "Введите через запятую ссылки, " +
+    bot.send_message(message.from_user.id, "Введите через ПРОБЕЛ ссылки, " +
     "по которым будут подбираться анкеты")  
 
 @bot.message_handler(content_types=['text'])
@@ -118,10 +121,10 @@ def calcAnyText(message):
             settings['age'] = age
     elif settings['currCommand'] == 'key_words':
         bot.send_message(message.from_user.id, 'Принято. Новые ключевые слова для поиска: ' + message.text)
-        settings['key_words'] = message.text.replace(' ', '').split(',')
+        settings['key_words'] = message.text.split(' ')
     elif settings['currCommand'] == 'links':
         bot.send_message(message.from_user.id, 'Принято. Новые ссылка для поиска: ' + message.text)
-        settings['links'] = message.text.replace(' ', '').split(',')
+        settings['links'] = message.text.split(' ')
     else:
         user_markup = telebot.types.ReplyKeyboardMarkup(True, False)
         user_markup.row("/new", "/stop")
