@@ -11,8 +11,7 @@ settings = {
     'key_words': ['Москва'],
     'links': [
         'https://vk.com/wall-78855837?own=1',
-        'https://vk.com/wall-108037201?own=1',
-        #'https://vk.com/topic-12125584_27005921?offset=600'
+        'https://vk.com/wall-108037201?own=1'
         ]
     }
 
@@ -22,14 +21,14 @@ bot = telebot.TeleBot(TOKEN)
 def starting(message):
     settings['is_stop'] = True
     user_markup = telebot.types.ReplyKeyboardMarkup(True, False)
-    user_markup.row("/new", "/stop")
+    user_markup.row("/go", "/stop")
     user_markup.row("/status", "/settings")
     bot.send_message(message.from_user.id, 
 "Привет. Это YourFriendBot. Я помогаю находить анкеты в\
     пабликах по ключевым словам, тебе остаётся только\
     настроить, запустить и ждать, когда я отпправлю тебе первые анкеты ;)\n\n\
 Ты можешь использовать следующие команды:\n\
-    /new - начало новой сессии поиска\n\
+    /go - начало новой сессии поиска\n\
     /stop - прекращение действующей сессии\n\
     /status - информация о текущей сесcии\n\
     /settings - информация о текущих настройках поиска\n\n\
@@ -39,8 +38,8 @@ def starting(message):
     /links - ссылки в ВК, где будет поиск",
     reply_markup=user_markup)
 
-@bot.message_handler(commands=['new'])
-def com_new(message):
+@bot.message_handler(commands=['go'])
+def com_go(message):
     if settings['is_stop'] == True:
         if settings['links'] != None:
             bot.send_message(message.from_user.id, 
@@ -49,13 +48,16 @@ def com_new(message):
             "\nКлючевые слова: " + ('нет' if settings['key_words'] == None else str(settings['key_words'])) + 
             "\nСсылки для поиска: " + ('нет' if settings['links'] == None else str(settings['links'])) )
 
+            #бесконечный мониторинг, пока не остановят внешней командой stop
             settings['is_stop'] = False
-            messages = friend_parser.parse(settings)
-            if (messages != None): #TODO сделать бскончный цикл чтобы не мешал работе но постоянно вызывал метод parse
-                for messg in messages:
-                    bot.send_message(message.from_user.id, messg)
-            else:
-                bot.send_message(message.from_user.id, "Ничего...")
+            while settings['is_stop'] == False:
+                if (settings['is_stop'] == True):
+                    break
+                messages = friend_parser.parse(settings)
+                if (messages != None): 
+                    for messg in messages:
+                        bot.send_message(message.from_user.id, messg)
+                time.sleep(5)
         else:
             bot.send_message(message.from_user.id, "Чтобы начать новый поиск," +
             "необходимо добавить хотя бы 1 страницу для поиска.")
@@ -82,11 +84,27 @@ def com_status(message):
 
 @bot.message_handler(commands=['settings'])
 def com_settings(message):
+    user_markup = telebot.types.ReplyKeyboardMarkup(True, False)
     if settings['is_stop'] == True:
-        bot.send_message(message.from_user.id, "Поиск прекращён. Бот остановлен.")
+        user_markup.row("/age", "/key_words", "/links")
+        user_markup.row("/tomenu")
+        bot.send_message(message.from_user.id,
+        "Вы можете настроить критерии поиска следующими командами:\n \
+        /age - искомый минимальный возраст\n \
+        /key_words - искомые ключевые слова\n \
+        /links - ссылки в ВК, где будет поиск",
+        reply_markup=user_markup)
     else:
-        bot.send_message(message.from_user.id, "Чтобы изменить настройки, сначала необходимо " +
+        bot.send_message(message.from_user.id, 
+        "Чтобы изменить настройки, сначала необходимо " +
         "остановить текущий сеанс поиска командой /stop")
+
+@bot.message_handler(commands=['tomenu'])
+def tomenu(message):
+    user_markup = telebot.types.ReplyKeyboardMarkup(True, False)
+    user_markup.row("/go", "/stop")
+    user_markup.row("/status", "/settings")
+    bot.send_message(message.from_user.id, 'Настройки учтены', reply_markup=user_markup)
 
 @bot.message_handler(commands=['age'])
 def com_age(message):
@@ -123,18 +141,18 @@ def calcAnyText(message):
         bot.send_message(message.from_user.id, 'Принято. Новые ключевые слова для поиска: ' + message.text)
         settings['key_words'] = message.text.split(' ')
     elif settings['currCommand'] == 'links':
-        bot.send_message(message.from_user.id, 'Принято. Новые ссылка для поиска: ' + message.text)
+        bot.send_message(message.from_user.id, 'Принято. Новые ссылки для поиска: ' + message.text)
         settings['links'] = message.text.split(' ')
     else:
         user_markup = telebot.types.ReplyKeyboardMarkup(True, False)
-        user_markup.row("/new", "/stop")
+        user_markup.row("/go", "/stop")
         user_markup.row("/status", "/settings")
         bot.send_message(message.from_user.id, 
     "Привет. Это YourFriendBot. Я помогаю находить анкеты в\
         пабликах по ключевым словам, тебе остаётся только\
         настроить, запустить и ждать, когда я отпправлю тебе первые анкеты ;)\n\n\
     Ты можешь использовать следующие команды:\n\
-        /new - начало новой сессии поиска\n\
+        /go - начало новой сессии поиска\n\
         /stop - прекращение действующей сессии\n\
         /status - информация о текущей сесcии\n\
         /settings - информация о текущих настройках поиска\n\n\
@@ -145,7 +163,6 @@ def calcAnyText(message):
         reply_markup=user_markup)
     
     settings['currCommand'] = None
-
 
 while True:
     try:

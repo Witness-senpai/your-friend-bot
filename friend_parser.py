@@ -60,8 +60,12 @@ def do_parse():
                     #f = open('test.txt', 'w', encoding='utf-8')
                     #f.write(str(full_post.prettify))
                     #f.close()
-
-                    post_text = full_post.find('div', attrs={'class': 'wall_post_text'}).text
+                    
+                    #Если вдруг текста в посте нет, то на следующую итерацию
+                    try:
+                        post_text = full_post.find('div', attrs={'class': 'wall_post_text'}).text
+                    except:
+                        continue
 
                     post_id = link #id = уникальной ссылке
                     
