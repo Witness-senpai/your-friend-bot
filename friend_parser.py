@@ -1,8 +1,9 @@
 from bs4 import BeautifulSoup as bs
-import requests
-import lxml.html
 from fake_useragent import UserAgent
 from secret_token import AutfData
+import requests
+import lxml.html
+import time
 
 class FParser:
     def __init__(self, setts):
@@ -32,7 +33,7 @@ class FParser:
             'messages': [],
             'total': 0,
             'aim': 0
-        }
+        }  
 
         for root_link in self.__setts['links']:
             #Имитация запроса с разных браузеров
@@ -55,56 +56,66 @@ class FParser:
 
                 #проход по каждому посту от самого нового до лимита хранения
                 #прорускаем 0 пост, так как он всегда закреплён и носит информационный характер
-                for post in posts[1:self.STORE_LIMIT + 1]:
+                for post in posts[1:self.STORE_LIMIT + 1:]:
                     #генерируем ппрямую ссылку на пост из его уникального id
                     link = post.find('div', attrs={'class':'wall_post_cont _wall_post_cont'})['id'][3:]
                     full_link = 'https://vk.com/wall' + link
 
-                    #открываем пост полность в новой вкладке и анализируем полный текст
-                    request = requests.get(full_link, headers={'User-Agent': str(us.chrome)})
-                    full_post = bs(request.content,"lxml")
                     post_text = ""
                     try:
+                        #открываем пост полность в новой вкладке и анализируем полный текст
+                        request = requests.get(full_link, headers={'User-Agent': str(us.chrome)})
+                        full_post = bs(request.content,"lxml")
                         post_text = full_post.find('div', attrs={'class': 'wall_post_text'}).text
                     except:
-                        f = open('test.txt', 'w', encoding='utf-8')
-                        f.write(str(full_post) + "\n\n")
-                        f.close()
-
-                    if link not in self.__old_links[root_link]:
-                        self.__old_links[root_link].append(link)
-                        toBot['total'] += 1
+                        time.sleep(0.2)
                     else:
-                        continue #пропуск старой ссылки, которая просматривалась
-                
-                    if (
-                    any((age in post_text) for age in self.__setts['ages']) and 
-                    any((key in post_text) for key in self.__setts['key_words'])
-                    ):
-                        toBot['messages'].append(
-                            post_text[:200] + "...\n\n" + "ссылка: " + full_link 
-                        )
-                        toBot['aim'] = toBot['aim'] + 1
-
-                        self.__old_links[root_link].append(link)
-                        #при привышении лимита на хранение удаляем начиная со старых
-                        while(len(self.__old_links[root_link]) > self.STORE_LIMIT):    
-                            self.__old_links[root_link].pop(0)                      
-
+                        self.__analize(toBot, post_text, link, full_link, root_link)
+                    
             elif 'topic' in root_link: #если это записи в топике группы
-                topic_wall = soup.find('div', attrs={'id': 'content'})
-                topics = topic_wall.find_all('div', attrs={'class': 'bp_post clear_fix'})
+                try:
+                    topic_wall = soup.find('div', attrs={'id': 'content'})
+                    topics = topic_wall.find_all('div', attrs={'class': 'bp_post clear_fix'})
+                except:
+                    time.sleep(0.2)
+                    continue
+                else:
+                    #проход по последним записям в количесве ЛИМИТА либо по всем, если их меньше
+                    nlist = (topics if len(topics) < self.STORE_LIMIT else topics[-self.STORE_LIMIT:])
+                    for topic in nlist:
+                        topic_text = topic.find('div', attrs={'class': 'bp_text'}).text
+                        link = topic.find('a', attrs={'class': 'bp_date'})['href']
+                        full_link = 'https://vk.com' + link
 
-                #проход по последним записям в количесве ЛИМИТА либо по всем, если их меньше
-                nlist = (topics if len(topics) < self.STORE_LIMIT else topics[::-1][:self.STORE_LIMIT])
-                for topic in nlist:
-                    topic_text = topic.find('div', attrs={'class': 'bp_text'}).text
-                    link = topic.find('a', attrs={'class': 'bp_date'})['href']
-                    full_link = 'https://vk.com' + link
+                        self.__analize(toBot, topic_text, link, full_link, root_link)         
             else:
                 pass
-
+            #пауза в пару секунд между разными пабликами
+            time.sleep(1)
         return toBot
+
+    #анализ наличия ключевых слов и формировани ответа для бота
+    def __analize(self, toBot, text, link, full_link, root_link):
+        time.sleep(0.2)#маленькая пауза, чтобы не забанили
+        if link not in self.__old_links[root_link]:
+            #Если пришла новая ссылка, то: если её ячейка уже заполнилась,
+            #тогда добавляем её в начало, сдвинув все остальные вправо, при этом,
+            #удалится наиболее старая запись
+            if (len(self.__old_links[root_link]) == self.STORE_LIMIT):
+                self.__old_links[root_link] = self.__push_queue(link, self.__old_links[root_link])
+            else:
+                self.__old_links[root_link].append(link)
+            toBot['total'] += 1
+        else:
+            return #пропуск старой ссылки, которая просматривалась
+        if (
+        any((age in text) for age in self.__setts['ages']) and 
+        any((key in text) for key in self.__setts['key_words'])
+        ):
+            toBot['messages'].append(
+                text[:200] + "...\n\n" + "ссылка: " + full_link 
+            )
+            toBot['aim'] = toBot['aim'] + 1
 
     #Метод для авторизации, если предполагается поиск в закрытом сообществе
     def __autf(self, url, autf_data):
@@ -126,4 +137,8 @@ class FParser:
         if ('onLoginDone' in response.text):
             return session
         else:
-            return "ErrorAuth" 
+            return "ErrorAuth"
+
+    def __push_queue(self, el, array):
+        return [el] + array[:-1]
+

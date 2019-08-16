@@ -12,9 +12,7 @@ settings = {
     'age': '18',
     'key_words': ['Москва'],
     'links': [
-        'https://vk.com/topic-12125584_27005921?offset=600',
-        'https://vk.com/wall-78855837?own=1',
-        'https://vk.com/wall-108037201?own=1'
+        'https://vk.com/wall-26014521?own=1'
         ]
     }
 
@@ -158,8 +156,8 @@ def calcAnyText(message):
         except:
             bot.send_message(message.from_user.id, 'Введён некорректный возраст!')
         
-        if (age not in range(0, 99)):
-            bot.send_message(message.from_user.id, 'Пожалуйства, введите корретное число от 0 до 99')
+        if (age not in range(1, 99)):
+            bot.send_message(message.from_user.id, 'Пожалуйства, введите корретное число от 1 до 99')
         else:
             bot.send_message(message.from_user.id, 'Принято. Новый минимальный возраст для поиска: ' + str(age))
             settings['age'] = age
@@ -195,4 +193,4 @@ while True:
         bot.polling(none_stop=True)
     except Exception as e:
         print('Some error: ' + str(e))
-        time.sleep(5)
+        time.sleep(10)
