@@ -1,17 +1,18 @@
-import friend_parser
+from friend_parser import FParser
 import telebot
 import time
 from secret_token import TOKEN
 
 settings = {
-    'total_forms': 0,
-    'aim_forms': 0,
+    'total': 0,
+    'aim': 0,
     'currCommand': None,
     'start_time': 0,
     'is_stop': True,
     'age': '18',
     'key_words': ['Москва'],
     'links': [
+        'https://vk.com/topic-12125584_27005921?offset=600',
         'https://vk.com/wall-78855837?own=1',
         'https://vk.com/wall-108037201?own=1'
         ]
@@ -55,14 +56,16 @@ def com_go(message):
 
             #бесконечный мониторинг, пока не остановят внешней командой stop
             settings['is_stop'] = False
+            fParser = FParser(settings)
             while settings['is_stop'] == False:
                 if (settings['is_stop'] == True):
-                    break  
-                fromParser = friend_parser.parse(settings)
-                settings['total_forms'] += fromParser['total_forms']
-                settings['aim_forms'] += fromParser['aim_forms']
-                if (fromParser != None): 
-                    for messg in fromParser['messages']:
+                    break
+                data = fParser.do_parse()
+
+                settings['total'] += data['total']
+                settings['aim'] += data['aim']
+                if (data != None): 
+                    for messg in data['messages']:
                         bot.send_message(message.from_user.id, messg)
                 time.sleep(5)
         else:
@@ -95,14 +98,14 @@ def com_status(message):
         hours = (tot_time // 3600) % 24
         days = (tot_time // (3600 * 24))
         bot.send_message(message.from_user.id,
-        "Бот работает уже:" + str(tot_time) + " секунд, то есть уже: " +
+        "Бот работает уже: " + str(tot_time) + " секунд, то есть уже: " +
         "\nДней: " + str(int(days)) + 
         "\nЧасов: " + str(int(hours)) +
         "\nМинут: " + str(int(minutes)) + 
         "\nСекунд: " + str(int(seconds)) +
         "\n\nЗа это время было обработано:" + 
-        "\nНовых анкет: " + str(settings['total_forms']) +
-        "\nПодходящих анкет: " + str(settings['aim_forms']))
+        "\nНовых анкет: " + str(settings['total']) +
+        "\nПодходящих анкет: " + str(settings['aim']))
 
 
 @bot.message_handler(commands=['settings'])
