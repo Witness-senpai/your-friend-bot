@@ -1,11 +1,12 @@
 from bs4 import BeautifulSoup as bs
 import requests
-import selenium
-from selenium import webdriver
+import lxml.html
+from fake_useragent import UserAgent
+
 
 age_diff = 5 #разница в большую сторону с минимальным возрастом
-old_ids = [] #список для временного хранение id постов
-store_limit = 20 #лимит хранения старых id
+old_links = [] #список для временного хранение id постов
+store_limit = 100 #лимит хранения старых id
 
 #cписок найденых сообщений и статистика, которые будут возвращены боту
 toBot = {
@@ -37,12 +38,10 @@ def do_parse():
     toBot['aim_forms'] = 0
 
     for link in setts['links']:
-        #Имитация браузера
-        browser = webdriver.PhantomJS(executable_path="F:/phantomjs-2.1.1-windows/bin/phantomjs.exe")
-        browser.get(link)
-        html = browser.page_source
-
-        soup = bs(html, "html.parser")
+        #Имитация запроса с разных браузеров
+        us = UserAgent()
+        request = requests.get(link, headers={'User-Agent': str(us.random)})
+        soup = bs(request.content, "lxml")
 
         if 'wall' in link: #если это записи на стене группы
             main_wall = soup.find('div', attrs={'id': 'page_wall_posts'})
@@ -50,46 +49,44 @@ def do_parse():
 
             for post in posts:
                 date = post.find("div", attrs={'class': 'post_date'})
-                #проверка, что это именно пост, а не про комментарий и тд
+                #проверка, что это именно пост, а не комментарий по наличию селектора даты поста
                 if date != None:
                     link = post.find('a', attrs={'class':'post_link'})['href']
                     full_link = 'https://vk.com' + link
 
-                    #открываем пост полностью и анализируем полный текст
-                    session = requests.session()
-                    request = session.get(full_link)
-
-                    full_post = bs(request.content,"html.parser")
+                    #открываем пост полность в новой вкладке и анализируем полный текст
+                    request = requests.get(full_link, headers={'User-Agent': str(us.random)})
+                    full_post = bs(request.content,"lxml")
 
                     #f = open('test.txt', 'w', encoding='utf-8')
                     #f.write(str(full_post.prettify))
                     #f.close()
                     
-                    #Если вдруг текста в посте нет, то на следующую итерацию
-                    try:
-                        post_text = full_post.find('div', attrs={'class': 'wall_post_text'}).text
-                    except:
+                    #Если вдруг текста в посте нет(только картинки и тд), то на следующую итерацию
+                    post_text = full_post.find('div', attrs={'class': 'wall_post_text'})
+                    if (post_text == None):
                         continue
+                    else:
+                        post_text = post_text.text
 
-                    post_id = link #id = уникальная ссылка
-                    if post_id not in old_ids:
+                    if link not in old_links:
                         toBot['total_forms'] += 1
              
                     if (
-                    post_id not in old_ids and
+                    link not in old_links and
                     any((age in post_text) for age in setts['ages']) and 
                     any((key in post_text) for key in setts['key_words'])
                     ):
                         toBot['messages'].append(
                             "Время публикации: " + date.text + "\n\n" + 
-                            post_text + "\n\n" + "ссылка: " + full_link 
+                            post_text[:200] + "...\n\n" + "ссылка: " + full_link 
                         )
                         toBot['aim_forms'] = toBot['aim_forms'] + 1
 
-                        old_ids.append(post_id)
+                        old_links.append(link)
                         #при привышении лимита на хранение удаляем начиная со старых
-                        while(len(old_ids) > store_limit):    
-                            old_ids.pop(0)
+                        while(len(old_links) > store_limit):    
+                            old_links.pop(0)
                         
                 else: 
                     continue
