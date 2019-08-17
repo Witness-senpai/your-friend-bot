@@ -1,5 +1,4 @@
 from bs4 import BeautifulSoup as bs
-from fake_useragent import UserAgent
 from secret_token import AutfData
 import requests
 import lxml.html
@@ -36,19 +35,22 @@ class FParser:
         }  
 
         for root_link in self.__setts['links']:
-            #Имитация запроса с разных браузеров
-            us = UserAgent()
-            request = requests.get(root_link, headers={'User-Agent': str(us.random)})
+            #Имитация запроса
+            request = requests.get(root_link)
             soup = bs(request.content, "lxml")
             
             #Если ошибка доступа, то скорее всего для страницы нужно авторизоваться
             if ('Ошибка доступа' in soup.text):
-                session = self.__autf(root_link, AutfData)
+                try:
+                    session = self.__autf(root_link, AutfData)
+                except:
+                    print("\nОшибка авторизации по адресу: " + root_link)
+                    break         
                 if (session == "ErrorAuth"):
                     print("\nОшибка авторизации по адресу: " + root_link)
                     break
                 else:
-                    request = session.get(root_link, headers={'User-Agent': str(us.random)})
+                    request = session.get(root_link)
                     soup = bs(request.content, "lxml")    
 
             if 'wall' in root_link: #если это записи на стене группы
@@ -60,23 +62,28 @@ class FParser:
                     link = post.find('div', attrs={'class':'wall_post_cont _wall_post_cont'})['id'][3:]
                     full_link = 'https://vk.com/wall' + link
 
+                    #если старая ссылка, сразу пропускаем
+                    if link in self.__old_links[root_link]:
+                        continue
+
                     post_text = ""
                     try:
                         #открываем пост полность в новой вкладке и анализируем полный текст
-                        request = requests.get(full_link, headers={'User-Agent': str(us.random)})
+                        request = requests.get(full_link)
                         full_post = bs(request.content,"lxml")
                         post_text = full_post.find('div', attrs={'class': 'wall_post_text'}).text
                     except:
-                        time.sleep(0.2)
+                        print("сбой при открытии " + full_link)
+                        continue
                     else:
                         self.__analize(toBot, post_text, link, full_link, root_link)
-                    
+
             elif 'topic' in root_link: #если это записи в топике группы
                 try:
                     topic_wall = soup.find('div', attrs={'id': 'content'})
                     topics = topic_wall.find_all('div', attrs={'class': 'bp_post clear_fix'})
                 except:
-                    time.sleep(0.2)
+                    print("сбой при доступе к топику: " + root_link)
                     continue
                 else:
                     #проход по последним записям в количесве ЛИМИТА либо по всем, если их меньше
@@ -86,16 +93,19 @@ class FParser:
                         link = topic.find('a', attrs={'class': 'bp_date'})['href']
                         full_link = 'https://vk.com' + link
 
+                        #если старая ссылка, сразу пропускаем
+                        if link in self.__old_links[root_link]:
+                            continue
+
                         self.__analize(toBot, topic_text, link, full_link, root_link)         
             else:
                 pass
             #пауза в пару секунд между разными пабликами
-            time.sleep(1)
+            #time.sleep(1)
         return toBot
 
     #анализ наличия ключевых слов и формировани ответа для бота
     def __analize(self, toBot, text, link, full_link, root_link):
-        time.sleep(0.2)#маленькая пауза, чтобы не забанили
         if link not in self.__old_links[root_link]:
             #Если пришла новая ссылка, то: если её ячейка уже заполнилась,
             #тогда добавляем её в начало, сдвинув все остальные вправо, при этом,
@@ -123,8 +133,7 @@ class FParser:
         pwd = autf_data[1]
 
         session = requests.session()
-        us = UserAgent()
-        data = session.get(login_url, headers={'User-Agent': str(us.random)})
+        data = session.get(login_url)
         html = lxml.html.fromstring(data.content)
 
         form = html.forms[0]

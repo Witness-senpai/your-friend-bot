@@ -59,15 +59,15 @@ def start():
 
                 #бесконечный мониторинг, пока не остановят внешней командой stop
                 settings['is_stop'] = False
+                settings['total'] = 0
+                settings['aim'] = 0
                 fParser = FParser(settings)
                 while settings['is_stop'] == False:
-                    if (settings['is_stop'] == True):
-                        break
                     data = fParser.do_parse()
 
-                    settings['total'] += data['total']
-                    settings['aim'] += data['aim']
-                    if (data != None and settings['is_stop'] == False): 
+                    if (data != None and settings['is_stop'] == False):
+                        settings['total'] += data['total']
+                        settings['aim'] += data['aim'] 
                         for messg in data['messages']:
                             bot.send_message(message.from_user.id, messg)
                     time.sleep(5)
