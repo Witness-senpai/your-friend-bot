@@ -1,7 +1,7 @@
-import your_friend_bot
+from your_friend_bot import start
 
 def main():
-    your_friend_bot.start()
+    start()
 
 if __name__ == '__main__':
     main()

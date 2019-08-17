@@ -16,8 +16,8 @@ def start():
             'https://vk.com/topic-12125584_27005921?offset=600',
             'https://vk.com/wall-108037201?own=1',
             'https://vk.com/wall-78855837?own=1',
-            'https://vk.com/wall-102911028?own=1'
-            'https://vk.com/topic-12125584_33046615?offset=1080',
+            'https://vk.com/wall-102911028?own=1',
+            'https://vk.com/topic-12125584_33046615?offset=1080'
             ]
         }
 
@@ -42,7 +42,7 @@ def start():
                         "\t/age - искомый минимальный возраст\n" +
                         "\t/key_words - искомые ключевые слова\n" +
                         "\t/links - ссылки в ВК, где будет поиск",
-        reply_markup=user_markup)
+                        reply_markup=user_markup)
 
     @bot.message_handler(commands=['go'])
     def com_go(message):
@@ -118,11 +118,11 @@ def start():
             user_markup.row("/age", "/key_words", "/links")
             user_markup.row("/tomenu")
             bot.send_message(message.from_user.id,
-                            "Вы можете настроить критерии поиска следующими командами:" +
+                            "Вы можете настроить критерии поиска следующими командами:\n" +
                             "\t/age - искомый минимальный возраст\n" +
                             "\t/key_words - искомые ключевые слова\n" +
                             "\t/links - ссылки в ВК, где будет поиск",
-            reply_markup=user_markup)
+                            reply_markup=user_markup)
         else:
             bot.send_message(message.from_user.id, 
                             "Чтобы изменить настройки, сначала необходимо " +
@@ -131,6 +131,7 @@ def start():
     @bot.message_handler(commands=['tomenu'])
     def tomenu(message):
         user_markup = telebot.types.ReplyKeyboardMarkup(True, False)
+        settings['currCommand'] = None
         user_markup.row("/go", "/stop")
         user_markup.row("/status", "/settings")
         bot.send_message(message.from_user.id, 'Настройки учтены', reply_markup=user_markup)
@@ -149,9 +150,11 @@ def start():
     @bot.message_handler(commands=['links'])
     def com_links(message):
         settings['currCommand'] = 'links'
-        bot.send_message(message.from_user.id, "Введите через ПРОБЕЛ ссылки, " +
-                        "по которым будут подбираться анкеты. \nВАЖНО: ссылка должна" +
-                        "быть именно на стену сообщества, например 'vk.com/wall-ID_СООБЩЕСТВА'") " +
+        bot.send_message(message.from_user.id, 
+                        "Введите через ПРОБЕЛ ссылки,по которым будут подбираться анкеты. " +
+                        "\nВАЖНО: ссылка должна быть именно на стену сообщества, например:" +
+                        "'vk.com/wall-ID_СООБЩЕСТВА'.\nЕСЛИ вы хотите добавить новую ссылку к " +
+                        "существующим пришлите '+' в начале ссылки, например: '+vk.com/wall-ID_СООБЩЕСТВА'")
 
     @bot.message_handler(content_types=['text'])
     def calcAnyText(message):
@@ -168,11 +171,17 @@ def start():
                 bot.send_message(message.from_user.id, 'Принято. Новый минимальный возраст для поиска: ' + str(age))
                 settings['age'] = age
         elif settings['currCommand'] == 'key_words':
-            bot.send_message(message.from_user.id, 'Принято. Новые ключевые слова для поиска: ' + message.text)
-            settings['key_words'] = message.text.split(' ')
+            if (message.text != None):
+                bot.send_message(message.from_user.id, 'Принято. Новые ключевые слова для поиска: ' + message.text)
+                settings['key_words'] = message.text.split(' ')
         elif settings['currCommand'] == 'links':
-            bot.send_message(message.from_user.id, 'Принято. Новые ссылки для поиска: ' + message.text)
-            settings['links'] = message.text.split(' ')
+            if (message.text != None):
+                if (message.text[0] == '+'):
+                    bot.send_message(message.from_user.id, 'Принято. Добавлена новая ссылка: ' + message.text[1:])
+                    settings['links'].append(message.text[1:])
+                else:
+                    bot.send_message(message.from_user.id, 'Принято. Новые ссылки для поиска: ' + message.text)
+                    settings['links'] = message.text.split(' ')
         else:
             user_markup = telebot.types.ReplyKeyboardMarkup(True, False)
             user_markup.row("/go", "/stop")

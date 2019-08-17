@@ -38,7 +38,7 @@ class FParser:
         for root_link in self.__setts['links']:
             #Имитация запроса с разных браузеров
             us = UserAgent()
-            request = requests.get(root_link, headers={'User-Agent': str(us.chrome)})
+            request = requests.get(root_link, headers={'User-Agent': str(us.random)})
             soup = bs(request.content, "lxml")
             
             #Если ошибка доступа, то скорее всего для страницы нужно авторизоваться
@@ -48,7 +48,7 @@ class FParser:
                     print("\nОшибка авторизации по адресу: " + root_link)
                     break
                 else:
-                    request = session.get(root_link, headers={'User-Agent': str(us.chrome)})
+                    request = session.get(root_link, headers={'User-Agent': str(us.random)})
                     soup = bs(request.content, "lxml")    
 
             if 'wall' in root_link: #если это записи на стене группы
@@ -63,7 +63,7 @@ class FParser:
                     post_text = ""
                     try:
                         #открываем пост полность в новой вкладке и анализируем полный текст
-                        request = requests.get(full_link, headers={'User-Agent': str(us.chrome)})
+                        request = requests.get(full_link, headers={'User-Agent': str(us.random)})
                         full_post = bs(request.content,"lxml")
                         post_text = full_post.find('div', attrs={'class': 'wall_post_text'}).text
                     except:
@@ -124,7 +124,7 @@ class FParser:
 
         session = requests.session()
         us = UserAgent()
-        data = session.get(login_url, headers={'User-Agent': str(us.chrome)})
+        data = session.get(login_url, headers={'User-Agent': str(us.random)})
         html = lxml.html.fromstring(data.content)
 
         form = html.forms[0]
