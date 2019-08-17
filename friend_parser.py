@@ -55,8 +55,7 @@ class FParser:
                 posts = soup.find_all('div', attrs={'class': 'wall_text'})
 
                 #проход по каждому посту от самого нового до лимита хранения
-                #прорускаем 0 пост, так как он всегда закреплён и носит информационный характер
-                for post in posts[1:self.STORE_LIMIT + 1:]:
+                for post in posts[:self.STORE_LIMIT]:
                     #генерируем ппрямую ссылку на пост из его уникального id
                     link = post.find('div', attrs={'class':'wall_post_cont _wall_post_cont'})['id'][3:]
                     full_link = 'https://vk.com/wall' + link
@@ -108,9 +107,9 @@ class FParser:
             toBot['total'] += 1
         else:
             return #пропуск старой ссылки, которая просматривалась
-        if (
+        if ( 
         any((age in text) for age in self.__setts['ages']) and 
-        any((key in text) for key in self.__setts['key_words'])
+        any((key.lower() in text.lower()) for key in self.__setts['key_words'])
         ):
             toBot['messages'].append(
                 text[:200] + "...\n\n" + "ссылка: " + full_link 
