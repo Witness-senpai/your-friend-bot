@@ -150,11 +150,17 @@ def start():
     @bot.message_handler(commands=['links'])
     def com_links(message):
         settings['currCommand'] = 'links'
+        links_text = ''
+        num = 1
+        for ltext in settings['links']:
+            links_text += str(num) + ") " + ltext + "\n"
+            num += 1
         bot.send_message(message.from_user.id, 
                         "Введите через ПРОБЕЛ ссылки,по которым будут подбираться анкеты. " +
-                        "\nВАЖНО: ссылка должна быть именно на стену сообщества, например:" +
-                        "'vk.com/wall-ID_СООБЩЕСТВА'.\nЕСЛИ вы хотите добавить новую ссылку к " +
-                        "существующим пришлите '+' в начале ссылки, например: '+vk.com/wall-ID_СООБЩЕСТВА'")
+                        "\n    ВАЖНО: ссылка должна быть именно на стену сообщества, например:" +
+                        "'vk.com/wall-ID_СООБЩЕСТВА'.\n    ЕСЛИ вы хотите добавить новую ссылку к " +
+                        "существующим пришлите '+' в начале ссылки, например: '+vk.com/wall-ID_СООБЩЕСТВА'" +
+                        "\n    ЕСЛИ хотите удалить ссылку, то пришлите '-НОМЕР_ССЫЛКИ'\n" + links_text) 
 
     @bot.message_handler(content_types=['text'])
     def calcAnyText(message):
@@ -179,6 +185,13 @@ def start():
                 if (message.text[0] == '+'):
                     bot.send_message(message.from_user.id, 'Принято. Добавлена новая ссылка: ' + message.text[1:])
                     settings['links'].append(message.text[1:])
+                elif(message.text[0] == '-'):
+                    try:
+                       settings['links'].pop(int(message.text[1:]) - 1)
+                    except:
+                        bot.send_message(message.from_user.id, 'Не удалось удалить...проверьте корректность.')
+                    else:
+                        bot.send_message(message.from_user.id, 'Принято, указанная ссылка удалена.')
                 else:
                     bot.send_message(message.from_user.id, 'Принято. Новые ссылки для поиска: ' + message.text)
                     settings['links'] = message.text.split(' ')
