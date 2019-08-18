@@ -7,7 +7,7 @@ import time
 class FParser:
     def __init__(self, setts):
         self.AGE_DIFF = 5 #разница в большую сторону с минимальным возрастом
-        self.STORE_LIMIT = 8 #лимит хранения старых id для каждой ссылки поиска
+        self.STORE_LIMIT = 5 #лимит хранения старых id для каждой ссылки поиска
         self.TOPIC_LIMIT = 20 #максимальное количество топиков в одной странице(ограничение от ВК)
 
         self.__old_links = {link: [] for link in setts['links']}
@@ -54,10 +54,16 @@ class FParser:
                     soup = bs(request.content, "lxml")    
 
             if 'wall' in root_link: #если это записи на стене группы
-                posts = soup.find_all('div', attrs={'class': 'wall_text'})
+                #Берём самые новые посты в количестве лимита
+                posts = soup.find_all('div', attrs={'class': 'wall_text'})[:self.STORE_LIMIT]
+
+                #Если мы уже храним максимальное количество постов, то новые посты должны поступать
+                #в обратном порядке, это поможет сохранить их последовательность от самых новых до старых
+                if (len(self.__old_links[root_link]) == self.STORE_LIMIT):
+                    posts = posts[::-1]
 
                 #проход по каждому посту от самого нового до лимита хранения
-                for post in posts[:self.STORE_LIMIT]:
+                for post in posts:
                     #генерируем ппрямую ссылку на пост из его уникального id
                     link = post.find('div', attrs={'class':'wall_post_cont _wall_post_cont'})['id'][3:]
                     full_link = 'https://vk.com/wall' + link
