@@ -1,30 +1,17 @@
 from friend_parser import FParser
 import telebot
 import time
+import json
+import threading
 from secret_token import TOKEN
 
 def start():
-    settings = {
-        'total': 0,
-        'aim': 0,
-        'currCommand': None,
-        'start_time': 0,
-        'is_stop': True,
-        'age': '18',
-        'key_words': ['Москва'],
-        'links': [
-            'https://vk.com/topic-12125584_27005921?offset=600',
-            'https://vk.com/wall-108037201?own=1',
-            'https://vk.com/wall-78855837?own=1',
-            'https://vk.com/wall-102911028?own=1',
-            'https://vk.com/topic-12125584_33046615?offset=1080'
-            ]
-        }
 
-    bot = telebot.TeleBot(TOKEN)
+    bot = telebot.TeleBot(TOKEN)    
 
     @bot.message_handler(commands=['start'])
     def starting(message):
+        settings['id'] = message.from_user.id
         settings['is_stop'] = True
         user_markup = telebot.types.ReplyKeyboardMarkup(True, False)
         user_markup.row("/go", "/stop")
@@ -46,36 +33,49 @@ def start():
 
     @bot.message_handler(commands=['go'])
     def com_go(message):
-        if settings['is_stop'] == True:
+        if settings['is_stop'] == True or settings['currCommand'] == 'restart':
             if settings['links'] != None:
-                bot.send_message(message.from_user.id, 
-                                "Отлично. Бот начал новый поиск с настройками:\n" +
-                                "Минимальный возраст: " + ('любой' if settings['age'] == None else str(settings['age'])) + 
-                                "\nКлючевые слова: " + ('нет' if settings['key_words'] == None else str(settings['key_words'])) + 
-                                "\nСсылки для поиска: " + ('нет' if settings['links'] == None else str(settings['links'])) )
+                #при restart в получаем id пользователя из настроек
+                user_id = settings['id']
+                if settings['currCommand'] != 'restart':
+                    settings['id'] = message.from_user.id
+                    user_id = message.from_user.id
 
-                #фиксируем время начала поиска
-                settings['start_time'] = time.time()
+                    bot.send_message(user_id, 
+                                    "Отлично. Бот начал новый поиск с настройками:\n" +
+                                    "Минимальный возраст: " + ('любой' if settings['age'] == None else str(settings['age'])) + 
+                                    "\nКлючевые слова: " + ('нет' if settings['key_words'] == None else str(settings['key_words'])) + 
+                                    "\nСсылки для поиска: " + ('нет' if settings['links'] == None else str(settings['links'])) )
 
-                #бесконечный мониторинг, пока не остановят внешней командой stop
-                settings['is_stop'] = False
-                settings['total'] = 0
-                settings['aim'] = 0
+                    #фиксируем время начала поиска
+                    settings['start_time'] = time.time()
+
+                    #бесконечный мониторинг, пока не остановят внешней командой stop
+                    settings['is_stop'] = False
+                    settings['total'] = 0
+                    settings['aim'] = 0
+                
                 fParser = FParser(settings)
                 while settings['is_stop'] == False:
                     data = fParser.do_parse()
+                    print("Я пидорас")
 
                     if (data != None and settings['is_stop'] == False):
                         settings['total'] += data['total']
                         settings['aim'] += data['aim'] 
                         for messg in data['messages']:
-                            bot.send_message(message.from_user.id, messg)
+                            bot.send_message(user_id, messg)
+
+                    #Фиксируем данные после каждой итерации на случай сбоев по время парсинга
+                    with open('data.json', 'w', encoding='utf-8') as f:
+                        json.dump(settings, f, ensure_ascii=False, indent=4)
+
                     time.sleep(5)
             else:
-                bot.send_message(message.from_user.id, "Чтобы начать новый поиск," +
+                bot.send_message(user_id, "Чтобы начать новый поиск," +
                 "необходимо добавить хотя бы 1 страницу для поиска.")
         else:
-            bot.send_message(message.from_user.id, "Чтобы начать новый поиск," +
+            bot.send_message(user_id, "Чтобы начать новый поиск," +
             "остановите текущий поиск командой /stop")
 
     @bot.message_handler(commands=['stop'])
@@ -216,9 +216,51 @@ def start():
         
         settings['currCommand'] = None
 
+    #=======C этого момента стартует бот======
+
+    settings = {
+                'id': -1,
+                'total': 0,
+                'aim': 0,
+                'currCommand': None,
+                'start_time': 0,
+                'is_stop': True,
+                'age': '18',
+                'key_words': ['Москва'],
+                'links': [
+                    'https://vk.com/topic-12125584_27005921?offset=600',
+                    'https://vk.com/wall-108037201?own=1',
+                    'https://vk.com/wall-78855837?own=1',
+                    'https://vk.com/wall-102911028?own=1',
+                    'https://vk.com/topic-12125584_33046615?offset=1080'
+                    ]
+                }
+    json_obj = None
+    try:
+        #Начинаем работу с попытки загрузить данные, если таковые имеюся
+        with open('data.json', 'r', encoding='utf-8') as f:
+            json_obj = json.load(f)
+
+        #если переменная стоп в активном состоянии, значит работы была
+        #прервана внештатно и её нужно возобновить
+        if json_obj['is_stop'] == False: 
+            settings = json_obj
+            settings['currCommand'] = 'restart'
+
+            t = threading.Thread(target=com_go, args=(None,))
+            t.daemon = True
+            t.start()
+
+        elif json_obj == None:
+            with open('data.json', 'w', encoding='utf-8') as f:
+                json.dump(settings, f, ensure_ascii=False, indent=4)    
+
+    except Exception as ex:
+        print(ex)
+
     while True:
         try:
-            bot.polling(none_stop=True)
+            bot.polling(none_stop=True, timeout=300)
         except Exception as e:
             print('Some error: ' + str(e))
             time.sleep(10)

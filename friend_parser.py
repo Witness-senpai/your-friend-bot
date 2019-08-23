@@ -7,7 +7,7 @@ import time
 class FParser:
     def __init__(self, setts):
         self.AGE_DIFF = 5 #разница в большую сторону с минимальным возрастом
-        self.STORE_LIMIT = 5 #лимит хранения старых id для каждой ссылки поиска
+        self.STORE_LIMIT = 8 #лимит хранения старых id для каждой ссылки поиска
         self.TOPIC_LIMIT = 20 #максимальное количество топиков в одной странице(ограничение от ВК)
 
         self.__old_links = {link: [] for link in setts['links']}
