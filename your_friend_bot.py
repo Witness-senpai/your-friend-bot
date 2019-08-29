@@ -4,6 +4,11 @@ import time
 import json
 import threading
 from secret_token import TOKEN
+import logging
+
+def saveSetts(settings): 
+    with open('data.json', 'w', encoding='utf-8') as f:
+        json.dump(settings, f, ensure_ascii=False, indent=4)
 
 def start():
 
@@ -58,7 +63,6 @@ def start():
                 fParser = FParser(settings)
                 while settings['is_stop'] == False:
                     data = fParser.do_parse()
-                    print("Я пидорас")
 
                     if (data != None and settings['is_stop'] == False):
                         settings['total'] += data['total']
@@ -67,8 +71,7 @@ def start():
                             bot.send_message(user_id, messg)
 
                     #Фиксируем данные после каждой итерации на случай сбоев по время парсинга
-                    with open('data.json', 'w', encoding='utf-8') as f:
-                        json.dump(settings, f, ensure_ascii=False, indent=4)
+                    saveSetts(settings)
 
                     time.sleep(5)
             else:
@@ -135,6 +138,7 @@ def start():
         user_markup.row("/go", "/stop")
         user_markup.row("/status", "/settings")
         bot.send_message(message.from_user.id, 'Настройки учтены', reply_markup=user_markup)
+        saveSetts(settings)
 
     @bot.message_handler(commands=['age'])
     def com_age(message):
@@ -216,6 +220,9 @@ def start():
         
         settings['currCommand'] = None
 
+    logging.basicConfig(filename="botError.log", level=logging.ERROR)
+    log = logging.getLogger("all")
+
     #=======C этого момента стартует бот======
 
     settings = {
@@ -236,31 +243,42 @@ def start():
                     ]
                 }
     json_obj = None
+    t = threading.Thread(target=com_go, args=(None,))
     try:
         #Начинаем работу с попытки загрузить данные, если таковые имеюся
         with open('data.json', 'r', encoding='utf-8') as f:
             json_obj = json.load(f)
 
-        #если переменная стоп в активном состоянии, значит работы была
-        #прервана внештатно и её нужно возобновить
-        if json_obj['is_stop'] == False: 
+        #загрузка настроек после перезапуска или сбоя
+        if json_obj: 
             settings = json_obj
-            settings['currCommand'] = 'restart'
+            if (json_obj['is_stop'] == False):
+                settings['currCommand'] = 'restart'
+                bot.send_message(settings['id'], "Бот перезапустился, информация о сессии сохранена.")
 
-            t = threading.Thread(target=com_go, args=(None,))
-            t.daemon = True
-            t.start()
+                #запускаем в другом потоке парсер
+                t.daemon = True
+                t.start()
 
         elif json_obj == None:
-            with open('data.json', 'w', encoding='utf-8') as f:
-                json.dump(settings, f, ensure_ascii=False, indent=4)    
+            saveSetts(settings)
 
     except Exception as ex:
+        with open("botLog.txt", "w+") as log:
+            log.write(str(time.ctime(time.time())) + " - " + ex)
         print(ex)
 
     while True:
+       # try:
+            #t.kill()
+        #except:
+        #    print("shock")
         try:
-            bot.polling(none_stop=True, timeout=300)
+            with open("botLog.txt", "w+") as log:
+                log.write(str(time.ctime(time.time())) + " - Запуска Bot Pollong")
+            bot.polling(none_stop=True, timeout=300)  
         except Exception as e:
             print('Some error: ' + str(e))
+            with open("botLog.txt", "w+") as log:
+                log.write(str(time.ctime(time.time())) + " - " + e)
             time.sleep(10)
