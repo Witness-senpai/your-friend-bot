@@ -61,12 +61,14 @@ def start():
                     settings['aim'] = 0
                 
                 fParser = FParser(settings)
+
                 while settings['is_stop'] == False:
                     data = fParser.do_parse()
 
                     if (data != None and settings['is_stop'] == False):
                         settings['total'] += data['total']
-                        settings['aim'] += data['aim'] 
+                        settings['aim'] += data['aim']
+                        settings['old_links'] = data['old_links'] 
                         for messg in data['messages']:
                             bot.send_message(user_id, messg)
 
@@ -87,7 +89,9 @@ def start():
             bot.send_message(message.from_user.id, "Бот уже остановлен и ждёт новых указаний.")   
         else:
             settings['is_stop'] = True
-            bot.send_message(message.from_user.id, "Поиск прекращён. Бот остановлен.")   
+            bot.send_message(message.from_user.id, "Поиск прекращён. Бот остановлен.")
+            settings['old_links'] = {}
+            saveSetts(settings)   
 
     @bot.message_handler(commands=['status'])
     def com_status(message):
@@ -244,7 +248,8 @@ def start():
                     'https://vk.com/wall-78855837?own=1',
                     'https://vk.com/wall-102911028?own=1',
                     'https://vk.com/topic-12125584_33046615?offset=1080'
-                    ]
+                    ],
+                'old_links': {}
                 }
     json_obj = None
     t = threading.Thread(target=com_go, args=(None,))
@@ -263,21 +268,20 @@ def start():
                 #запускаем в другом потоке парсер
                 t.daemon = True
                 t.start()
-
         elif json_obj == None:
             saveSetts(settings)
 
     except Exception as ex:
         with open("botLog.txt", "a") as log:
-            log.write(str(time.ctime(time.time())) + " - " + str(ex))
+            log.write(str(time.ctime(time.time())) + " - " + str(ex) + "\n")
         print(ex)
 
     try:
         with open("botLog.txt", "a") as log:
-            log.write(str(time.ctime(time.time())) + " - Запуск Bot Polling")
+            log.write(str(time.ctime(time.time())) + " - Запуск Bot Polling" + "\n")
         bot.polling(none_stop=True, timeout=300)  
     except Exception as e:
         print('Some error: ' + str(e))
         with open("botLog.txt", "a") as log:
-            log.write(str(time.ctime(time.time())) + " - " + str(e))
+            log.write(str(time.ctime(time.time())) + " - " + str(e) + "\n")
         time.sleep(10)

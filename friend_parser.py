@@ -10,7 +10,11 @@ class FParser:
         self.STORE_LIMIT = 8 #лимит хранения старых id для каждой ссылки поиска
         self.TOPIC_LIMIT = 20 #максимальное количество топиков в одной странице(ограничение от ВК)
 
-        self.__old_links = {link: [] for link in setts['links']}
+        if setts['old_links'] == {}:
+            self.__old_links = {link: [] for link in setts['links']}
+        else:
+            self.__old_links = setts['old_links']
+
 
         #учтение настроек, переданые от бота
         self.__setts = dict() 
@@ -31,7 +35,8 @@ class FParser:
         toBot = {
             'messages': [],
             'total': 0,
-            'aim': 0
+            'aim': 0,
+            'old_links': {}
         }  
 
         for root_link in self.__setts['links']:
@@ -46,12 +51,12 @@ class FParser:
                 except:
                     print("\nОшибка авторизации по адресу: " + root_link)
                     with open("botLog.txt", "a") as log:
-                        log.write(str(time.ctime(time.time())) + "Ошибка авторизации по адресу: " + root_link)
+                        log.write(str(time.ctime(time.time())) + "Ошибка авторизации по адресу: " + root_link + "\n")
                     break         
                 if (session == "ErrorAuth"):
                     print("\nОшибка авторизации по адресу: " + root_link)
                     with open("botLog.txt", "a") as log:
-                        log.write(str(time.ctime(time.time())) + "Ошибка авторизации по адресу: " + root_link)
+                        log.write(str(time.ctime(time.time())) + "Ошибка авторизации по адресу: " + root_link + "\n")
                     break
                 else:
                     request = session.get(root_link)
@@ -85,7 +90,7 @@ class FParser:
                     except:
                         print("сбой при открытии " + full_link)
                         with open("botLog.txt", "a") as log:
-                            log.write(str(time.ctime(time.time())) + "сбой при открытии " + full_link)
+                            log.write(str(time.ctime(time.time())) + "сбой при открытии " + full_link + "\n")
                         continue
                     else:
                         self.__analize(toBot, post_text, link, full_link, root_link)
@@ -114,6 +119,7 @@ class FParser:
                 pass
             #пауза в пару секунд между разными пабликами
             #time.sleep(1)
+            toBot['old_links'] = self.__old_links
         return toBot
 
     #анализ наличия ключевых слов и формировани ответа для бота
@@ -158,7 +164,7 @@ class FParser:
             return session
         else:
             with open("botLog.txt", "a") as log:
-                log.write(str(time.ctime(time.time())) + "ErrorAuth")
+                log.write(str(time.ctime(time.time())) + "ErrorAuth" + "\n")
             return "ErrorAuth"
 
     def __push_queue(self, el, array):
