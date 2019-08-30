@@ -220,8 +220,12 @@ def start():
         
         settings['currCommand'] = None
 
-    logging.basicConfig(filename="botError.log", level=logging.ERROR)
-    log = logging.getLogger("all")
+    logging.basicConfig(
+                        filename="botError.log",
+                        level=logging.ERROR,
+                        format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S'
+                        )
 
     #=======C этого момента стартует бот======
 
@@ -264,21 +268,16 @@ def start():
             saveSetts(settings)
 
     except Exception as ex:
-        with open("botLog.txt", "w+") as log:
-            log.write(str(time.ctime(time.time())) + " - " + ex)
+        with open("botLog.txt", "a") as log:
+            log.write(str(time.ctime(time.time())) + " - " + str(ex))
         print(ex)
 
-    while True:
-       # try:
-            #t.kill()
-        #except:
-        #    print("shock")
-        try:
-            with open("botLog.txt", "w+") as log:
-                log.write(str(time.ctime(time.time())) + " - Запуска Bot Pollong")
-            bot.polling(none_stop=True, timeout=300)  
-        except Exception as e:
-            print('Some error: ' + str(e))
-            with open("botLog.txt", "w+") as log:
-                log.write(str(time.ctime(time.time())) + " - " + e)
-            time.sleep(10)
+    try:
+        with open("botLog.txt", "a") as log:
+            log.write(str(time.ctime(time.time())) + " - Запуск Bot Polling")
+        bot.polling(none_stop=True, timeout=300)  
+    except Exception as e:
+        print('Some error: ' + str(e))
+        with open("botLog.txt", "a") as log:
+            log.write(str(time.ctime(time.time())) + " - " + str(e))
+        time.sleep(10)

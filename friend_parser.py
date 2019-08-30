@@ -45,12 +45,12 @@ class FParser:
                     session = self.__autf(root_link, AutfData)
                 except:
                     print("\nОшибка авторизации по адресу: " + root_link)
-                    with open("botLog.txt", "w+") as log:
+                    with open("botLog.txt", "a") as log:
                         log.write(str(time.ctime(time.time())) + "Ошибка авторизации по адресу: " + root_link)
                     break         
                 if (session == "ErrorAuth"):
                     print("\nОшибка авторизации по адресу: " + root_link)
-                    with open("botLog.txt", "w+") as log:
+                    with open("botLog.txt", "a") as log:
                         log.write(str(time.ctime(time.time())) + "Ошибка авторизации по адресу: " + root_link)
                     break
                 else:
@@ -84,7 +84,7 @@ class FParser:
                         post_text = full_post.find('div', attrs={'class': 'wall_post_text'}).text
                     except:
                         print("сбой при открытии " + full_link)
-                        with open("botLog.txt", "w+") as log:
+                        with open("botLog.txt", "a") as log:
                             log.write(str(time.ctime(time.time())) + "сбой при открытии " + full_link)
                         continue
                     else:
@@ -157,7 +157,7 @@ class FParser:
         if ('onLoginDone' in response.text):
             return session
         else:
-            with open("botLog.txt", "w+") as log:
+            with open("botLog.txt", "a") as log:
                 log.write(str(time.ctime(time.time())) + "ErrorAuth")
             return "ErrorAuth"
 
