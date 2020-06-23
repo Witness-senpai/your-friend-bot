@@ -1,17 +1,24 @@
-from friend_parser import FParser
-import telebot
 import time
 import json
 import threading
-from secret_token import TOKEN
 import logging
 
-def saveSetts(settings): 
-    with open('data.json', 'w', encoding='utf-8') as f:
+import telebot
+
+from friend_parser import FParser
+from secret_token import TOKEN
+
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+        level='INFO',
+        format='%(asctime)s %(levelname)s: %(module)s: %(message)s')
+
+def save_settings(settings): 
+    with open('data.json', 'w+', encoding='utf-8') as f:
         json.dump(settings, f, ensure_ascii=False, indent=4)
 
 def start():
-
     bot = telebot.TeleBot(TOKEN)    
 
     @bot.message_handler(commands=['start'])
@@ -40,7 +47,7 @@ def start():
     def com_go(message):
         if settings['is_stop'] == True or settings['currCommand'] == 'restart':
             if settings['links'] != None:
-                #при restart в получаем id пользователя из настроек
+                # При restart в получаем id пользователя из настроек
                 user_id = settings['id']
                 if settings['currCommand'] != 'restart':
                     settings['id'] = message.from_user.id
@@ -52,10 +59,10 @@ def start():
                                     "\nКлючевые слова: " + ('нет' if settings['key_words'] == None else str(settings['key_words'])) + 
                                     "\nСсылки для поиска: " + ('нет' if settings['links'] == None else str(settings['links'])) )
 
-                    #фиксируем время начала поиска
+                    # Фиксируем время начала поиска
                     settings['start_time'] = time.time()
 
-                    #бесконечный мониторинг, пока не остановят внешней командой stop
+                    # Бесконечный мониторинг, пока не остановят внешней командой stop
                     settings['is_stop'] = False
                     settings['total'] = 0
                     settings['aim'] = 0
@@ -72,8 +79,8 @@ def start():
                         for messg in data['messages']:
                             bot.send_message(user_id, messg)
 
-                    #Фиксируем данные после каждой итерации на случай сбоев по время парсинга
-                    saveSetts(settings)
+                    # Фиксируем данные после каждой итерации на случай сбоев по время парсинга
+                    save_settings(settings)
 
                     time.sleep(5)
             else:
@@ -91,7 +98,7 @@ def start():
             settings['is_stop'] = True
             bot.send_message(message.from_user.id, "Поиск прекращён. Бот остановлен.")
             settings['old_links'] = {}
-            saveSetts(settings)   
+            save_settings(settings)   
 
     @bot.message_handler(commands=['status'])
     def com_status(message):
@@ -142,7 +149,7 @@ def start():
         user_markup.row("/go", "/stop")
         user_markup.row("/status", "/settings")
         bot.send_message(message.from_user.id, 'Настройки учтены', reply_markup=user_markup)
-        saveSetts(settings)
+        save_settings(settings)
 
     @bot.message_handler(commands=['age'])
     def com_age(message):
@@ -254,28 +261,26 @@ def start():
     json_obj = None
     t = threading.Thread(target=com_go, args=(None,))
     try:
-        #Начинаем работу с попытки загрузить данные, если таковые имеюся
+        # Начинаем работу с попытки загрузить данные, если таковые имеются
         with open('data.json', 'r', encoding='utf-8') as f:
             json_obj = json.load(f)
 
-        #загрузка настроек после перезапуска или сбоя
-        if json_obj: 
+        # Pагрузка настроек после перезапуска или сбоя
+        if not json_obj is None: 
             settings = json_obj
             if (json_obj['is_stop'] == False):
                 settings['currCommand'] = 'restart'
                 bot.send_message(settings['id'], "Бот перезапустился, информация о сессии сохранена.")
 
-                #запускаем в другом потоке парсер
-                t.daemon = True
+                # Запускаем в другом потоке парсер
                 t.start()
-        elif json_obj == None:
-            saveSetts(settings)
+        elif json_obj is None:
+            save_settings(settings)
 
     except Exception as ex:
         with open("botLog.txt", "a") as log:
             log.write(str(time.ctime(time.time())) + " - " + str(ex) + "\n")
         print(ex)
-
     try:
         with open("botLog.txt", "a") as log:
             log.write(str(time.ctime(time.time())) + " - Запуск Bot Polling" + "\n")

@@ -1,8 +1,11 @@
-from bs4 import BeautifulSoup as bs
-from secret_token import AutfData
 import requests
-import lxml.html
 import time
+import lxml.html
+
+from bs4 import BeautifulSoup as bs
+
+from secret_token import AutfData
+
 
 class FParser:
     def __init__(self, setts):
@@ -16,13 +19,13 @@ class FParser:
             self.__old_links = setts['old_links']
 
 
-        #учтение настроек, переданые от бота
+        # Учтение настроек, переданые от бота
         self.__setts = dict() 
         self.__setts['key_words'] = setts['key_words']
         self.__setts['links'] = setts['links']
         self.__setts['ages'] = self.__genetate_ages(setts['age'])
 
-    #создание списка возрастов [мин.,...,мин.+5]
+    # Cоздание списка возрастов [мин.,...,мин.+5]
     def __genetate_ages(self, age):
         min_age = int(age)
         ages = []
@@ -62,7 +65,7 @@ class FParser:
                     request = session.get(root_link)
                     soup = bs(request.content, "lxml")    
 
-            if 'wall' in root_link: #если это записи на стене группы
+            if 'wall' in root_link: # Если это записи на стене группы
                 # Берём самые новые посты в количестве лимита
                 posts = soup.find_all('div', attrs={'class': 'wall_text'})[:self.STORE_LIMIT]
 
