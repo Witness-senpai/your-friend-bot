@@ -8,12 +8,18 @@ import telebot
 from friend_parser import FParser
 from secret_token import TOKEN
 
+# Время между парсингом в секундах
+PARSE_TIMEOUT = 60
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
-        filename='bot.log',
-        level='INFO',
-        format='%(asctime)s %(levelname)s: %(module)s: %(message)s')
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s: %(module)s: %(message)s',
+        handlers=[
+            logging.FileHandler("bot.log"),
+            logging.StreamHandler()
+        ],
+    )
 
 def save_settings(settings): 
     with open('data.json', 'w+', encoding='utf-8') as f:
@@ -21,7 +27,7 @@ def save_settings(settings):
 
 def start():
     bot = telebot.TeleBot(TOKEN)
-    logger.infor("Bot start")    
+    logger.info("Bot start")    
 
 
     @bot.message_handler(commands=['start'])
@@ -49,9 +55,10 @@ def start():
 
     @bot.message_handler(commands=['go'])
     def com_go(message):
+        logger.info("Try to start new session...")
         if settings['is_stop'] == True or settings['currCommand'] == 'restart':
             if settings['links'] != None:
-                # При restart в получаем id пользователя из настроек
+                # При restart получаем id пользователя из настроек
                 user_id = settings['id']
                 if settings['currCommand'] != 'restart':
                     settings['id'] = message.from_user.id
@@ -86,7 +93,7 @@ def start():
                     # Фиксируем данные после каждой итерации на случай сбоев по время парсинга
                     save_settings(settings)
 
-                    time.sleep(5)
+                    time.sleep(PARSE_TIMEOUT)
             else:
                 bot.send_message(user_id, "Чтобы начать новый поиск," +
                 "необходимо добавить хотя бы 1 страницу для поиска.")
@@ -121,7 +128,7 @@ def start():
             hours = (tot_time // 3600) % 24
             days = (tot_time // (3600 * 24))
             bot.send_message(message.from_user.id,
-                            "Бот работает уже: " + str(tot_time) + " секунд, то есть уже: " +
+                            f"Бот работает уже: {tot_time:.2f} секунд, то есть уже: " +
                             "\nДней: " + str(int(days)) + 
                             "\nЧасов: " + str(int(hours)) +
                             "\nМинут: " + str(int(minutes)) + 
@@ -242,25 +249,11 @@ def start():
         settings['currCommand'] = None
 
     #=======C этого момента стартует бот======
+    
+    # Изначальная загрузка дефолтных настроек для облегчения
+    with open('default_data.json', 'r', encoding='utf-8') as f:
+        settings = json.load(f)
 
-    settings = {
-                'id': -1,
-                'total': 0,
-                'aim': 0,
-                'currCommand': None,
-                'start_time': 0,
-                'is_stop': True,
-                'age': '18',
-                'key_words': ['Москва'],
-                'links': [
-                    'https://vk.com/topic-12125584_27005921?offset=600',
-                    'https://vk.com/wall-108037201?own=1',
-                    'https://vk.com/wall-78855837?own=1',
-                    'https://vk.com/wall-102911028?own=1',
-                    'https://vk.com/topic-12125584_33046615?offset=1080'
-                    ],
-                'old_links': {}
-                }
     json_obj = None
     t = threading.Thread(target=com_go, args=(None,))
     try:
@@ -285,6 +278,6 @@ def start():
     try:
         logger.info("Запуск Bot Polling...")
         bot.polling(none_stop=True, timeout=300)  
-    except Exception as e:
+    except Exception as ex:
         logger.error(ex)
         time.sleep(10)

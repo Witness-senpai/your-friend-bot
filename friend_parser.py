@@ -10,14 +10,18 @@ from secret_token import AutfData
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
-        filename='bot.log',
-        level='INFO',
-        format='%(asctime)s %(levelname)s: %(module)s: %(message)s')
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s: %(module)s: %(message)s',
+        handlers=[
+            logging.FileHandler("bot.log"),
+            logging.StreamHandler()
+        ],
+    )
 
 class FParser:
     def __init__(self, setts):
         self.AGE_DIFF = 5 # Разница в большую сторону с минимальным возрастом
-        self.STORE_LIMIT = 8 # Лимит хранения старых id для каждой ссылки поиска
+        self.STORE_LIMIT = 16 # Лимит хранения старых id для каждой ссылки поиска
         self.TOPIC_LIMIT = 20 # Максимальное количество топиков в одной странице(ограничение от ВК)
         self.TEXT_LIMIT = 200 # Максимальное кол-во символов от поста, выводящиеся ботом
 
@@ -146,10 +150,13 @@ class FParser:
             any((age in text) for age in self.__setts['ages']) and 
             any((key.lower() in text.lower()) for key in self.__setts['key_words'])
         ):
+            logger.info("Ссылка подходит: " + full_link)
             toBot['messages'].append(
                 text[:self.TEXT_LIMIT] + "...\n\n" + "ссылка: " + full_link 
             )
             toBot['aim'] = toBot['aim'] + 1
+        else:
+            logger.info("Ссылка НЕ подходит: " + full_link)
 
     # Метод для авторизации, если предполагается поиск в закрытом сообществе
     def __autf(self, url, autf_data):
