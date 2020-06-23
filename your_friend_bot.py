@@ -11,6 +11,7 @@ from secret_token import TOKEN
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
+        filename='bot.log'
         level='INFO',
         format='%(asctime)s %(levelname)s: %(module)s: %(message)s')
 
@@ -19,7 +20,9 @@ def save_settings(settings):
         json.dump(settings, f, ensure_ascii=False, indent=4)
 
 def start():
-    bot = telebot.TeleBot(TOKEN)    
+    bot = telebot.TeleBot(TOKEN)
+    logger.infor("Bot start")    
+
 
     @bot.message_handler(commands=['start'])
     def starting(message):
@@ -42,6 +45,7 @@ def start():
                         "\t/key_words - искомые ключевые слова\n" +
                         "\t/links - ссылки в ВК, где будет поиск",
                         reply_markup=user_markup)
+
 
     @bot.message_handler(commands=['go'])
     def com_go(message):
@@ -90,6 +94,7 @@ def start():
             bot.send_message(user_id, "Чтобы начать новый поиск," +
             "остановите текущий поиск командой /stop")
 
+
     @bot.message_handler(commands=['stop'])
     def com_stoping(message):
         if settings['is_stop'] == True:
@@ -99,6 +104,7 @@ def start():
             bot.send_message(message.from_user.id, "Поиск прекращён. Бот остановлен.")
             settings['old_links'] = {}
             save_settings(settings)   
+
 
     @bot.message_handler(commands=['status'])
     def com_status(message):
@@ -142,6 +148,7 @@ def start():
                             "Чтобы изменить настройки, сначала необходимо " +
                             "остановить текущий сеанс поиска командой /stop")
 
+
     @bot.message_handler(commands=['tomenu'])
     def tomenu(message):
         user_markup = telebot.types.ReplyKeyboardMarkup(True, False)
@@ -151,16 +158,19 @@ def start():
         bot.send_message(message.from_user.id, 'Настройки учтены', reply_markup=user_markup)
         save_settings(settings)
 
+
     @bot.message_handler(commands=['age'])
     def com_age(message):
         settings['currCommand'] = 'age'
         bot.send_message(message.from_user.id, "Введите минимальный возраст, по которому будут подбираться анкеты:")     
+
 
     @bot.message_handler(commands=['key_words'])
     def com_key_words(message):
         settings['currCommand'] = 'key_words'
         bot.send_message(message.from_user.id, "Введите через ПРОБЕЛ ключевые слова, " +
                         "по которым будут подбираться анкеты. Например: Москва тян")
+
 
     @bot.message_handler(commands=['links'])
     def com_links(message):
@@ -176,6 +186,7 @@ def start():
                         "'vk.com/wall-ID_СООБЩЕСТВА'.\n    ЕСЛИ вы хотите добавить новую ссылку к " +
                         "существующим пришлите '+' в начале ссылки, например: '+vk.com/wall-ID_СООБЩЕСТВА'" +
                         "\n    ЕСЛИ хотите удалить ссылку, то пришлите '-НОМЕР_ССЫЛКИ'\n" + links_text) 
+
 
     @bot.message_handler(content_types=['text'])
     def calcAnyText(message):
@@ -228,15 +239,7 @@ def start():
                             "\t/key_words - искомые ключевые слова\n" +
                             "\t/links - ссылки в ВК, где будет поиск",
                             reply_markup=user_markup)
-        
         settings['currCommand'] = None
-
-    logging.basicConfig(
-                        filename="botError.log",
-                        level=logging.ERROR,
-                        format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S'
-                        )
 
     #=======C этого момента стартует бот======
 
@@ -276,17 +279,12 @@ def start():
                 t.start()
         elif json_obj is None:
             save_settings(settings)
-
     except Exception as ex:
-        with open("botLog.txt", "a") as log:
-            log.write(str(time.ctime(time.time())) + " - " + str(ex) + "\n")
-        print(ex)
+        logger.error(ex)
+
     try:
-        with open("botLog.txt", "a") as log:
-            log.write(str(time.ctime(time.time())) + " - Запуск Bot Polling" + "\n")
+        logger.info("Запуск Bot Polling...")
         bot.polling(none_stop=True, timeout=300)  
     except Exception as e:
-        print('Some error: ' + str(e))
-        with open("botLog.txt", "a") as log:
-            log.write(str(time.ctime(time.time())) + " - " + str(e) + "\n")
+        logger.error(ex)
         time.sleep(10)
