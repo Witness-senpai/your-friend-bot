@@ -1,6 +1,7 @@
 import requests
 import time
 import lxml.html
+import logging
 
 from bs4 import BeautifulSoup as bs
 
