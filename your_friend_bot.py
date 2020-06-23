@@ -11,7 +11,7 @@ from secret_token import TOKEN
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
-        filename='bot.log'
+        filename='bot.log',
         level='INFO',
         format='%(asctime)s %(levelname)s: %(module)s: %(message)s')
 

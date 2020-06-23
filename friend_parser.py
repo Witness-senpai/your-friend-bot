@@ -7,17 +7,23 @@ from bs4 import BeautifulSoup as bs
 from secret_token import AutfData
 
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+        filename='bot.log',
+        level='INFO',
+        format='%(asctime)s %(levelname)s: %(module)s: %(message)s')
+
 class FParser:
     def __init__(self, setts):
         self.AGE_DIFF = 5 # Разница в большую сторону с минимальным возрастом
         self.STORE_LIMIT = 8 # Лимит хранения старых id для каждой ссылки поиска
         self.TOPIC_LIMIT = 20 # Максимальное количество топиков в одной странице(ограничение от ВК)
+        self.TEXT_LIMIT = 200 # Максимальное кол-во символов от поста, выводящиеся ботом
 
         if setts['old_links'] == {}:
             self.__old_links = {link: [] for link in setts['links']}
         else:
             self.__old_links = setts['old_links']
-
 
         # Учтение настроек, переданые от бота
         self.__setts = dict() 
@@ -52,20 +58,18 @@ class FParser:
                 try:
                     session = self.__autf(root_link, AutfData)
                 except:
-                    print("\nОшибка авторизации по адресу: " + root_link)
-                    with open("botLog.txt", "a") as log:
-                        log.write(str(time.ctime(time.time())) + "Ошибка авторизации по адресу: " + root_link + "\n")
-                    break         
+                    logger.warning("Ошибка авторизации по адресу: " + root_link)
+                    break 
+
                 if (session == "ErrorAuth"):
-                    print("\nОшибка авторизации по адресу: " + root_link)
-                    with open("botLog.txt", "a") as log:
-                        log.write(str(time.ctime(time.time())) + "Ошибка авторизации по адресу: " + root_link + "\n")
+                    logger.warning("Ошибка авторизации по адресу: " + root_link)
                     break
                 else:
                     request = session.get(root_link)
                     soup = bs(request.content, "lxml")    
 
-            if 'wall' in root_link: # Если это записи на стене группы
+            # Если это записи на стене группы
+            if 'wall' in root_link: 
                 # Берём самые новые посты в количестве лимита
                 posts = soup.find_all('div', attrs={'class': 'wall_text'})[:self.STORE_LIMIT]
 
@@ -76,7 +80,7 @@ class FParser:
 
                 # Проход по каждому посту от самого нового до лимита хранения
                 for post in posts:
-                    #генерируем ппрямую ссылку на пост из его уникального id
+                    # Генерируем ппрямую ссылку на пост из его уникального id
                     link = post.find('div', attrs={'class':'wall_post_cont _wall_post_cont'})['id'][3:]
                     full_link = 'https://vk.com/wall' + link
 
@@ -91,23 +95,20 @@ class FParser:
                         full_post = bs(request.content,"lxml")
                         post_text = full_post.find('div', attrs={'class': 'wall_post_text'}).text
                     except:
-                        print("сбой при открытии " + full_link)
+                        logger.warning("Cбой при открытии " + full_link)
                         # Скорее всего пост не содержит текста и не нужный,
                         # но всё равно сохраняем его в старые ссылки, чтобы не пытаться
                         # открыть его при каждоый итерации.
                         self.__old_links[root_link].append(link)
-                        with open("botLog.txt", "a") as log:
-                            log.write(str(time.ctime(time.time())) + "сбой при открытии " + full_link + "\n")
                         continue
                     else:
                         self.__analize(toBot, post_text, link, full_link, root_link)
-
             elif 'topic' in root_link: # Если это записи в топике группы
                 try:
                     topic_wall = soup.find('div', attrs={'id': 'content'})
                     topics = topic_wall.find_all('div', attrs={'class': 'bp_post clear_fix'})
                 except:
-                    print("сбой при доступе к топику: " + root_link)
+                    logger.warning("Cбой при доступе к топику: " + root_link)
                     continue
                 else:
                     # Проход по последним записям в количесве ЛИМИТА либо по всем, если их меньше
@@ -124,8 +125,6 @@ class FParser:
                         self.__analize(toBot, topic_text, link, full_link, root_link)         
             else:
                 pass
-            # Пауза в пару секунд между разными пабликами
-            #time.sleep(1)
             toBot['old_links'] = self.__old_links
         return toBot
 
@@ -143,11 +142,11 @@ class FParser:
         else:
             return # Пропуск старой ссылки, которая просматривалась
         if ( 
-        any((age in text) for age in self.__setts['ages']) and 
-        any((key.lower() in text.lower()) for key in self.__setts['key_words'])
+            any((age in text) for age in self.__setts['ages']) and 
+            any((key.lower() in text.lower()) for key in self.__setts['key_words'])
         ):
             toBot['messages'].append(
-                text[:200] + "...\n\n" + "ссылка: " + full_link 
+                text[:self.TEXT_LIMIT] + "...\n\n" + "ссылка: " + full_link 
             )
             toBot['aim'] = toBot['aim'] + 1
 
@@ -170,8 +169,7 @@ class FParser:
         if ('onLoginDone' in response.text):
             return session
         else:
-            with open("botLog.txt", "a") as log:
-                log.write(str(time.ctime(time.time())) + "ErrorAuth" + "\n")
+            logger.error("ErrorAuth")
             return "ErrorAuth"
 
     def __push_queue(self, el, array):
