@@ -6,7 +6,8 @@ import logging
 import telebot
 
 from friend_parser import FParser
-from secret_token import TOKEN
+from secret import TOKEN
+
 
 # Время между парсингом в секундах
 PARSE_TIMEOUT = 60
@@ -17,18 +18,19 @@ logging.basicConfig(
         format='%(asctime)s %(levelname)s: %(module)s: %(message)s',
         handlers=[
             logging.FileHandler("bot.log"),
-            logging.StreamHandler()
+            logging.StreamHandler(),
         ],
     )
+
 
 def save_settings(settings): 
     with open('data.json', 'w+', encoding='utf-8') as f:
         json.dump(settings, f, ensure_ascii=False, indent=4)
 
+
 def start():
     bot = telebot.TeleBot(TOKEN)
     logger.info("Bot start")    
-
 
     @bot.message_handler(commands=['start'])
     def starting(message):
@@ -51,7 +53,6 @@ def start():
                         "\t/key_words - искомые ключевые слова\n" +
                         "\t/links - ссылки в ВК, где будет поиск",
                         reply_markup=user_markup)
-
 
     @bot.message_handler(commands=['go'])
     def com_go(message):
@@ -101,7 +102,6 @@ def start():
             bot.send_message(user_id, "Чтобы начать новый поиск," +
             "остановите текущий поиск командой /stop")
 
-
     @bot.message_handler(commands=['stop'])
     def com_stoping(message):
         if settings['is_stop'] == True:
@@ -111,7 +111,6 @@ def start():
             bot.send_message(message.from_user.id, "Поиск прекращён. Бот остановлен.")
             settings['old_links'] = {}
             save_settings(settings)   
-
 
     @bot.message_handler(commands=['status'])
     def com_status(message):
@@ -137,7 +136,6 @@ def start():
                             "\nВсего свежих анкет: " + str(settings['total']) +
                             "\nИз них подходящих: " + str(settings['aim']))
 
-
     @bot.message_handler(commands=['settings'])
     def com_settings(message):
         user_markup = telebot.types.ReplyKeyboardMarkup(True, False)
@@ -155,7 +153,6 @@ def start():
                             "Чтобы изменить настройки, сначала необходимо " +
                             "остановить текущий сеанс поиска командой /stop")
 
-
     @bot.message_handler(commands=['tomenu'])
     def tomenu(message):
         user_markup = telebot.types.ReplyKeyboardMarkup(True, False)
@@ -165,19 +162,16 @@ def start():
         bot.send_message(message.from_user.id, 'Настройки учтены', reply_markup=user_markup)
         save_settings(settings)
 
-
     @bot.message_handler(commands=['age'])
     def com_age(message):
         settings['currCommand'] = 'age'
         bot.send_message(message.from_user.id, "Введите минимальный возраст, по которому будут подбираться анкеты:")     
-
 
     @bot.message_handler(commands=['key_words'])
     def com_key_words(message):
         settings['currCommand'] = 'key_words'
         bot.send_message(message.from_user.id, "Введите через ПРОБЕЛ ключевые слова, " +
                         "по которым будут подбираться анкеты. Например: Москва тян")
-
 
     @bot.message_handler(commands=['links'])
     def com_links(message):
@@ -193,7 +187,6 @@ def start():
                         "'vk.com/wall-ID_СООБЩЕСТВА'.\n    ЕСЛИ вы хотите добавить новую ссылку к " +
                         "существующим пришлите '+' в начале ссылки, например: '+vk.com/wall-ID_СООБЩЕСТВА'" +
                         "\n    ЕСЛИ хотите удалить ссылку, то пришлите '-НОМЕР_ССЫЛКИ'\n" + links_text) 
-
 
     @bot.message_handler(content_types=['text'])
     def calcAnyText(message):
@@ -251,9 +244,13 @@ def start():
     #=======C этого момента стартует бот======
     
     # Изначальная загрузка дефолтных настроек для облегчения
-    with open('default_data.json', 'r', encoding='utf-8') as f:
-        settings = json.load(f)
+    try:
+        with open('data.json', 'r', encoding='utf-8') as f:
+            settings = json.load(f)
+    except FileNotFoundError:
+        logger.warning('File not fould: data.json')
 
+    '''
     json_obj = None
     t = threading.Thread(target=com_go, args=(None,))
     try:
@@ -274,10 +271,10 @@ def start():
             save_settings(settings)
     except Exception as ex:
         logger.error(ex)
-
-    try:
-        logger.info("Запуск Bot Polling...")
-        bot.polling(none_stop=True, timeout=300)  
-    except Exception as ex:
-        logger.error(ex)
-        time.sleep(10)
+    '''
+    #try:
+    logger.info("Запуск Bot Polling...")
+    bot.polling(none_stop=True, timeout=300)  
+    #except Exception as ex:
+    #    logger.error(ex)
+    #    time.sleep(10)

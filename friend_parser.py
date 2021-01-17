@@ -5,7 +5,7 @@ import logging
 
 from bs4 import BeautifulSoup as bs
 
-from secret_token import AutfData
+from secret import AUTF_DATA
 
 
 logger = logging.getLogger(__name__)
@@ -17,6 +17,10 @@ logging.basicConfig(
             logging.StreamHandler()
         ],
     )
+
+# Чтобы вк считал нас немобильным устройством 
+HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
+
 
 class FParser:
     def __init__(self, setts):
@@ -36,8 +40,10 @@ class FParser:
         self.__setts['links'] = setts['links']
         self.__setts['ages'] = self.__genetate_ages(setts['age'])
 
-    # Cоздание списка возрастов [мин.,...,мин.+5]
     def __genetate_ages(self, age):
+        """
+        Cоздание списка возрастов [мин.,...,мин.+5]
+        """
         min_age = int(age)
         ages = []
         for age in range(min_age, min_age + self.AGE_DIFF):
@@ -45,8 +51,10 @@ class FParser:
         return ages
 
     def do_parse(self):
-        # Список найденых сообщений и статистика, которые будут возвращены боту
-        toBot = {
+        """
+        Список найденых сообщений и статистика, которые будут возвращены боту
+        """
+        to_bot = {
             'messages': [],
             'total': 0,
             'aim': 0,
@@ -55,13 +63,13 @@ class FParser:
 
         for root_link in self.__setts['links']:
             # Имитация запроса
-            request = requests.get(root_link)
-            soup = bs(request.content, "lxml")
+            request = requests.get(root_link, headers=HEADERS)
+            soup = bs(request.content, "html.parser")
             
             # Если ошибка доступа, то скорее всего для страницы нужно авторизоваться
             if ('Ошибка доступа' in soup.text):
                 try:
-                    session = self.__autf(root_link, AutfData)
+                    session = self.__autf(AUTF_DATA)
                 except:
                     logger.warning("Ошибка авторизации по адресу: " + root_link)
                     break 
@@ -71,11 +79,13 @@ class FParser:
                     break
                 else:
                     request = session.get(root_link)
-                    soup = bs(request.content, "lxml")    
+                    soup = bs(request.content, "html5lib")    
 
             # Если это записи на стене группы
             if 'wall' in root_link: 
                 # Берём самые новые посты в количестве лимита
+                with open('tt.html', 'w', encoding='utf-8') as f:
+                    f.write(soup.prettify())
                 posts = soup.find_all('div', attrs={'class': 'wall_text'})[:self.STORE_LIMIT]
 
                 # Если мы уже храним максимальное количество постов, то новые посты должны поступать
@@ -96,18 +106,20 @@ class FParser:
                     post_text = ""
                     try:
                         # Открываем пост полность в новой вкладке и анализируем полный текст
-                        request = requests.get(full_link)
-                        full_post = bs(request.content,"lxml")
+                        request = requests.get(full_link, headers=HEADERS)
+                        full_post = bs(request.content, "lxml")
+                        with open('full.html', 'w', encoding='utf-8') as f:
+                            f.write(full_post.prettify())
                         post_text = full_post.find('div', attrs={'class': 'wall_post_text'}).text
                     except:
                         logger.warning("Cбой при открытии " + full_link)
-                        # Скорее всего пост не содержит текста и не нужный,
+                        # Скорее всего пост не содержит текста и может являться анкетой вовсе,
                         # но всё равно сохраняем его в старые ссылки, чтобы не пытаться
-                        # открыть его при каждоый итерации.
+                        # открыть его при каждой итерации.
                         self.__old_links[root_link].append(link)
                         continue
                     else:
-                        self.__analize(toBot, post_text, link, full_link, root_link)
+                        self.__analize(to_bot, post_text, link, full_link, root_link)
             elif 'topic' in root_link: # Если это записи в топике группы
                 try:
                     topic_wall = soup.find('div', attrs={'id': 'content'})
@@ -127,14 +139,16 @@ class FParser:
                         if link in self.__old_links[root_link]:
                             continue
 
-                        self.__analize(toBot, topic_text, link, full_link, root_link)         
+                        self.__analize(to_bot, topic_text, link, full_link, root_link)         
             else:
                 pass
-            toBot['old_links'] = self.__old_links
-        return toBot
+            to_bot['old_links'] = self.__old_links
+        return to_bot
 
-    # Анализ наличия ключевых слов и формировани ответа для бота
-    def __analize(self, toBot, text, link, full_link, root_link):
+    def __analize(self, to_bot, text, link, full_link, root_link):
+        """
+        Анализ наличия ключевых слов и формировани ответа для бота
+        """
         if link not in self.__old_links[root_link]:
             # Если пришла новая ссылка, то: если её ячейка уже заполнилась,
             # тогда добавляем её в начало, сдвинув все остальные вправо, при этом,
@@ -143,7 +157,7 @@ class FParser:
                 self.__old_links[root_link] = self.__push_queue(link, self.__old_links[root_link])
             else:
                 self.__old_links[root_link].append(link)
-            toBot['total'] += 1
+            to_bot['total'] += 1
         else:
             return # Пропуск старой ссылки, которая просматривалась
         if ( 
@@ -151,26 +165,26 @@ class FParser:
             any((key.lower() in text.lower()) for key in self.__setts['key_words'])
         ):
             logger.info("Ссылка подходит: " + full_link)
-            toBot['messages'].append(
+            to_bot['messages'].append(
                 text[:self.TEXT_LIMIT] + "...\n\n" + "ссылка: " + full_link 
             )
-            toBot['aim'] = toBot['aim'] + 1
+            to_bot['aim'] = to_bot['aim'] + 1
         else:
             logger.info("Ссылка НЕ подходит: " + full_link)
 
-    # Метод для авторизации, если предполагается поиск в закрытом сообществе
-    def __autf(self, url, autf_data):
+    def __autf(self, autf_data):
+        """
+        Метод для авторизации, если предполагается поиск в закрытом сообществе
+        """
         login_url = 'https://vk.com/login'
-        login = autf_data[0]
-        pwd = autf_data[1]
 
         session = requests.session()
         data = session.get(login_url)
         html = lxml.html.fromstring(data.content)
 
         form = html.forms[0]
-        form.fields['email'] = login
-        form.fields['pass'] = pwd
+        form.fields['email'] = autf_data['login']
+        form.fields['pass'] = autf_data['pass']
 
         response = session.post(form.action, data=form.form_values())
 
